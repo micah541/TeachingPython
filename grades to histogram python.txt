@@ -1,0 +1,16 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+df = pd.read_csv("grades.csv") 
+
+grades = df.iloc[:, 0].tolist()
+fig, ax = plt.subplots()
+ax.hist(grades, bins=8, edgecolor='black', alpha=0.7)
+ax.axvline(np.median(grades), color='red', linestyle='--', label='Median')
+ax.axvline(np.mean(grades), color='blue', linestyle=':', label='Mean')
+ax.legend()
+ax.set_xlabel('Grades')
+ax.set_ylabel('Counts')
+ax.set_title('Histogram of Student Grades')
+plt.show()
