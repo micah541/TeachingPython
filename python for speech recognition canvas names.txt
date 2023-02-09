@@ -1,0 +1,152 @@
+##requires PyAudio
+
+import pandas as pd
+import jellyfish
+import speech_recognition as sr
+
+# Read the CSV file
+df = pd.read_csv("names.csv")  # this is just a grade spreadsheet with names in the first column
+names_series = df[df.columns[0]]
+names_last_first = names_series.to_list()
+names_list = [k for k in names_last_first if ',' in k]  #converts last, first to first, last 
+names = [f"{name.split(', ')[1]} {name.split(', ')[0]}" for name in names_list]
+
+
+# Encode each name using the Soundex algorithm
+encoded_names = [jellyfish.soundex(name) for name in names]
+
+# Initialize the recognizer
+r = sr.Recognizer()
+
+def get_new_entry(r):
+    no=True
+    while(no):
+        with sr.Microphone() as source:
+            print("Student Name")
+            audio = r.record(source, duration=3)
+        try:
+            new_name = r.recognize_google(audio)
+        except sr.UnknownValueError:
+            print("Could not understand audio")
+            continue
+        encoded_new_name = jellyfish.soundex(new_name)
+        closest_match = min(encoded_names, key=lambda x: jellyfish.hamming_distance(x, encoded_new_name))
+        closest_match_index = encoded_names.index(closest_match)
+        print("You said:", names[closest_match_index])
+        value = input("Please enter a score if name correct, otherwise 'no' to try again or 'type' if you want to enter with keyboard.  If you are done, type 'done. ' ")
+        if (value=='no'): continue
+        if (value=='done'): return('done')
+        if (value=='type'): 
+            name = input("type name:  ")
+            grade = input("type grade:  ")
+            return(name, grade)
+        else: return(names[closest_match_index], value)
+
+
+
+df_grades = pd.DataFrame({'Name': [], 'Score': []})
+
+
+# Appending the results of the function to the data frame
+while(True):
+    new_data = get_new_entry(r)
+    if (new_data == 'done'): break
+    df_grades  = df_grades.append({'Name': new_data[0], 'Score': new_data[1]}, ignore_index=True)
+
+last_first = [names_list[names.index(nm)] if nm in names else nm for nm in df_grades[df_grades.columns[0]].to_list() ]
+df_grades.index = last_first
+
+df_grades.to_csv("names_with_grade.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####################################
+
+import pandas as pd
+
+# Read the CSV file
+df = pd.read_csv("names.csv")  # this is just a canvas file
+
+# Get the first column as a series
+names_series = df[df.columns[0]]
+names_list = names_series.to_list()
+names_list = [k for k in names_list if ',' in k]
+names = [f"{name.split(', ')[1]} {name.split(', ')[0]}" for name in names_list]
+
+
+numbers = [str(x) for x in range(1, 501)]
+
+numbers.append('Wrong, try again')
+
+
+
+import jellyfish
+import speech_recognition as sr
+
+
+# Encode each name using the Soundex algorithm
+encoded_names = [jellyfish.soundex(name) for name in names]
+encoded_numbers = [jellyfish.soundex(number) for number in numbers]
+
+# Initialize the recognizer
+r = sr.Recognizer()
+
+# Input a new name using the microphone
+with sr.Microphone() as source:
+    print("Say a name:")
+    audio = r.listen(source)
+
+# Transcribe the audio to text
+try:
+    new_name = r.recognize_google(audio)
+except sr.UnknownValueError:
+    print("Could not understand audio")
+    exit()
+
+encoded_new_name = jellyfish.soundex(new_name)
+closest_match = min(encoded_names, key=lambda x: jellyfish.hamming_distance(x, encoded_new_name))
+closest_match_index = encoded_names.index(closest_match)
+
+# Output the closest match
+print("You said:", names[closest_match_index])
+
+with sr.Microphone() as source:
+    print("Say a score, or wrong try again:")
+    audio = r.listen(source)
+
+# Transcribe the audio to text
+try:
+    new_number = r.recognize_google(audio)
+except sr.UnknownValueError:
+    print("Could not understand audio")
+    exit()
+
+encoded_new_number = jellyfish.soundex(new_number)
+closest_match = min(encoded_numbers, key=lambda x: jellyfish.hamming_distance(x, encoded_new_number))
+closest_match_index = encoded_numbers.index(closest_match)
+# Output the closest match
+print("You said:", numbers[closest_match_index])
+
+
+
+somethings wrong with my number encodings, but this seems off to a great start. 
+
+
+
+
+def get_new_entry():
+    
+
