@@ -1,0 +1,46 @@
+import pandas as pd
+#note I'm using the C:\py\ww
+
+
+f_in = open("webwork.csv", "r")
+f_out = open("webwork1.csv", "w")
+
+data = f_in.read()
+clean = data.split('STUDENT ')[1]
+
+f_out.write(clean) 
+f_out.close()
+
+ww = pd.read_csv("webwork1.csv")
+f_in.close()
+
+
+
+def merge(canvas, ww, tc):
+    ww_ids = ww[ww.columns[1]]
+    canvas_ids = canvas['SIS Login ID']
+    ww_ids = [w.split(' ')[0] for w in list(ww_ids)]  #there extra space 
+    ww.index = ww_ids
+    both = set(ww_ids).intersection(set(canvas_ids)) 
+    canvas.index = canvas['SIS Login ID']
+    for id in both:
+        canvas.at[id, tc] = ww.loc[id][6]
+    return(canvas)
+
+canvas_column = 'WW3a' #this is a string that uniquely contained in the columns
+
+canvas = pd.read_csv("canvas.csv")
+target_column = [c for c in canvas.columns if canvas_column in c]
+if len(target_column) == 0: print("nothing matching")
+
+if len(target_column)>1: print("not unique") 
+
+if len(target_column)==1 : updatecanvas = merge(canvas, ww, target_column[0]) 
+
+updatecanvas.to_csv("canvas_update.csv", index=False)
+
+
+
+        
+        
+    
