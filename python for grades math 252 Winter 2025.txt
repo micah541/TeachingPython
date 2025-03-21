@@ -1,0 +1,114 @@
+import pandas as pd
+#  c.csv is the file I download from canvas
+
+
+df = pd.read_csv("c.csv") 
+
+
+# Separate the points possible row
+points_possible = df.iloc[0]
+students_df = df.iloc[1:].reset_index(drop=True)
+
+
+# Function to strip extra canvas data from column names
+def strip_extra_data(col_name):
+    return col_name.split(' (')[0]
+
+# Apply the function to strip extra data from column names
+students_df.columns = [strip_extra_data(col) for col in students_df.columns]
+
+
+
+# Identify columns that contain the string "webwork #"
+webwork_columns = [col for col in students_df.columns if "webwork #" in col]
+
+
+# Calculate the sum of the 'webwork' columns and subtract the smallest value for each student
+students_df['webwork total'] = students_df[webwork_columns].apply(lambda row: row.sum() - row.min(), axis=1)
+
+
+# Function to calculate points possible for each student
+def calculate_points_possible(row, points_possible):
+    min_col = row.idxmin()
+    return sum(points_possible[col] for col in webwork_columns) - points_possible[min_col]
+
+# Calculate points possible for each student
+students_df['webwork points possible'] = students_df[webwork_columns].apply(lambda row: calculate_points_possible(row, points_possible), axis=1)
+
+#Note I didn't check that this subtracts the maximum column points possible if there are multiple zeros, but I geuss I never promised that, very small detail.  
+
+
+
+# Calculate the percentage and create a new column
+students_df['webwork percentage'] = (students_df['webwork total'] / students_df['webwork points possible']) * 100
+
+# Identify columns that contain the string "quiz week"
+quiz_columns = [col for col in students_df.columns if "quiz week" in col]
+
+# Function to calculate quiz total for each student
+def calculate_quiz_total(row):
+    # Replace 'EX' with NaN and convert to numeric
+    quiz_scores = pd.to_numeric(row[quiz_columns].replace('EX', pd.NA))
+    # Drop the lowest score and any NaN values
+    quiz_total = quiz_scores.dropna().sum() - quiz_scores.dropna().min()
+    return quiz_total
+
+# Calculate quiz total for each student
+students_df['quiz total'] = students_df.apply(calculate_quiz_total, axis=1)
+
+# Function to calculate quiz points possible for each student
+def calculate_quiz_points_possible(row):
+    num_quizzes = len(quiz_columns)
+    num_ex = row[quiz_columns].tolist().count('EX')
+    return (num_quizzes * 20) - 20 - (num_ex * 20)
+
+# Calculate quiz points possible for each student
+students_df['quiz points possible'] = students_df.apply(calculate_quiz_points_possible, axis=1)
+
+# Calculate the quiz grade as a percentage and create a new column
+students_df['quiz percentage'] = (students_df['quiz total'] / students_df['quiz points possible']) * 100
+
+
+
+# Fill empty midterm scores with 0
+students_df['midterm 1'] = students_df['midterm 1'].fillna(0)
+students_df['midterm 2'] = students_df['midterm 2'].fillna(0)
+
+# Define possible scores for midterms
+midterm_1_possible = 95
+midterm_2_possible = 86
+
+# Function to calculate the adjusted midterm score based on the final score
+def adjust_midterm_score(midterm_1_score, midterm_2_score, final_score, possible_score_1, possible_score_2):
+    final_percentage = final_score / 100
+    adjusted_midterm_1 = midterm_1_score if pd.isna(midterm_1_score) or midterm_1_score >= final_percentage * possible_score_1 else final_percentage * possible_score_1
+    adjusted_midterm_2 = midterm_2_score if pd.isna(midterm_2_score) or midterm_2_score >= final_percentage * possible_score_2 else final_percentage * possible_score_2
+    
+    # Ensure only one midterm is replaced by the final score if both are lower
+    if adjusted_midterm_1 != midterm_1_score and adjusted_midterm_2 != midterm_2_score:
+        if (final_percentage * possible_score_1 - midterm_1_score) > (final_percentage * possible_score_2 - midterm_2_score):
+            adjusted_midterm_2 = midterm_2_score
+        else:
+            adjusted_midterm_1 = midterm_1_score
+    
+    return adjusted_midterm_1, adjusted_midterm_2
+
+# Calculate adjusted midterm scores and create new columns
+students_df[['adjusted midterm 1', 'adjusted midterm 2']] = students_df.apply(
+    lambda row: adjust_midterm_score(row['midterm 1'], row['midterm 2'], row['final'], midterm_1_possible, midterm_2_possible), axis=1, result_type='expand'
+)
+
+# Calculate percentages for adjusted midterms and create new columns
+students_df['adjusted midterm 1 percentage'] = (students_df['adjusted midterm 1'] / midterm_1_possible) * 100
+students_df['adjusted midterm 2 percentage'] = (students_df['adjusted midterm 2'] / midterm_2_possible) * 100
+
+
+#sum it all up!
+
+students_df['total calculate score according to syllabus'] = students_df['adjusted midterm 1 percentage']*0.15 + students_df['adjusted midterm 2 percentage']*0.15 + students_df['final']*0.3 + students_df['quiz percentage']*0.2 + students_df['webwork percentage']*0.2
+
+
+
+#just a tool to spotcheck along the way 
+def look():
+    students_df.to_csv("look.csv") 
